@@ -516,8 +516,12 @@ export const GITHUB_ACTIONS_APK_WORKFLOW = `name: Build OmniPool Android APK
 
 on:
   push:
-    branches: [ main, master ]
+  pull_request:
   workflow_dispatch:
+
+env:
+  VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL || '' }}
+  VITE_SUPABASE_ANON_KEY: \${{ secrets.VITE_SUPABASE_ANON_KEY || '' }}
 
 jobs:
   build-android-apk:
@@ -564,6 +568,10 @@ jobs:
             fix(pkg.devDependencies);
             fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
           '
+          if [ -n "\$VITE_SUPABASE_URL" ] && [ -n "\$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "VITE_SUPABASE_URL=\$VITE_SUPABASE_URL" > .env.production
+            echo "VITE_SUPABASE_ANON_KEY=\$VITE_SUPABASE_ANON_KEY" >> .env.production
+          fi
           rm -f package-lock.json
           npm install --legacy-peer-deps
           npm run build
