@@ -1,0 +1,6 @@
+{
+  "name": "OmniPool: Multi-Account Cloud Storage Pool & Unified Mail Hub",
+  "description": "Manage 20+ Google accounts from a single interface, pool 15GB Drive allocations into a unified virtual storage drive with RAID chunking, catch OTPs in a unified inbox, and automate 730-day keep-alive heartbeats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

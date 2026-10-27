@@ -1,0 +1,80 @@
+name: Build OmniPool Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Java JDK 21 (Required for Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK & Accept Licenses
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager | head -n 1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+          fi
+
+      - name: Install Dependencies & Build Web Bundle
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const fix = (deps) => {
+              if (!deps) return;
+              for (const k of Object.keys(deps)) {
+                deps[k] = "latest";
+              }
+            };
+            fix(pkg.dependencies);
+            fix(pkg.devDependencies);
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+          '
+          rm -f package-lock.json
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Initialize Capacitor Android Project
+        run: |
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest --legacy-peer-deps
+          if [ ! -f "capacitor.config.json" ]; then
+            npx cap init "OmniPool" "com.omnipool.cloudhub" --web-dir dist
+          fi
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Grant Execute Permission for Gradlew
+        working-directory: ./android
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: ./android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload OmniPool APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniPool-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
